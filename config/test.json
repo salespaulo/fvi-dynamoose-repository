@@ -1,0 +1,10 @@
+{
+    "dynamoose": {
+        "prefix": "testing-prefix-",
+        "suffix": "-test-suffix",
+        "options": {
+            "waitForActive": false,
+            "waitForActiveTimeout": 1800
+        }
+    }
+}
