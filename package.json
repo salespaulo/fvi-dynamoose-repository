@@ -23,10 +23,9 @@
     "author": "FVI",
     "license": "MIT",
     "dependencies": {
-        "dynalite": "^3.1.5",
-        "dynamoose": "^1.11.1",
-        "fastest-validator": "^1.0.2",
-        "fvi-dynamoose-utils": "^0.0.1",
+        "dynalite": "^3.2.0",
+        "dynamoose": "^2.2.1",
+        "fvi-dynamoose-utils": "^0.0.2",
         "fvi-node-utils": "^0.0.1"
     },
     "devDependencies": {

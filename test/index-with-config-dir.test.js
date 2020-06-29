@@ -22,7 +22,7 @@ const schemaOpts = {
 
 describe('Testing with dir ./config', () => {
     const id = uuid.v4()
-    const client = 'FVI'
+    const client = 'Intelligir'
     const status = 'STATUS'
     const type = 'TYPE'
     let repository = null
@@ -49,16 +49,16 @@ describe('Testing with dir ./config', () => {
 
     it('Testing Repository OK:', done => {
         chai.assert(!!model.query, 'Not Found Model Query Function!')
-        chai.assert(!!model.get, 'Not Found Model Get Function!')
         chai.assert(!!model.scan, 'Not Found Model Scan Function!')
         chai.assert(!!model.create, 'Not Found Model Save Function!')
+        chai.assert(!!model.update, 'Not Found Model Update Function!')
         chai.assert(!!model.delete, 'Not Found Model Delete Function!')
         done()
     })
 
     it('Testing Get Empty:', done => {
-        model
-            .get({ id: 'NotFound', client })
+        model.query
+            .getOne({ id: 'NotFound', client })
             .then(res => {
                 chai.assert(!res, 'Found Response where Id no exists!')
                 done()
@@ -115,8 +115,8 @@ describe('Testing with dir ./config', () => {
     })
 
     it('Testing Get OK:', done => {
-        model
-            .get({ id, client })
+        model.query
+            .getOne({ id, client })
             .then(res => {
                 chai.assert(!!res, 'Not Found Response!')
                 chai.assert(!!res.id, 'Not Found Response.id!')

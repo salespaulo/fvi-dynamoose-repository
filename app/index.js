@@ -1,56 +1,46 @@
 'use strict'
 
-const utils = require('fvi-node-utils')
+const { debug, objects } = require('fvi-node-utils')
+const { APP_PREFIX, newModelNameNotFound } = require('./utils')
 
-const model = require('./model')
+const dynamoose = require('./dynamoose')
 
-const models = {}
+const MODELS = {}
 
-const mapModel = model => (modelName, modelSchema, schemaOpts = {}, opts = {}) => {
-    const instance = model.create(modelName, modelSchema, schemaOpts, opts)
+const get = modelName => {
+    const instance = MODELS[modelName]
 
-    // setup model pool
-    models[`${modelName}`] = instance
-
-    return {
-        map: mapModel(model),
-        get: getModel,
-    }
-}
-
-const getModel = modelName => {
-    const instance = models[`${modelName}`]
-
-    if (!instance) {
-        const e = new Error(`[Dynamoose Model]: Not Found Model name=${modelName}`)
-        e.name = 'ModelDynamooseError'
-        throw e
+    if (instance == null) {
+        throw newModelNameNotFound(`${APP_PREFIX}[get]`, modelName)
     }
 
     return instance
 }
 
-const closeRepository = instance => {
+const closeFactory = instance => {
     return () =>
         instance.server.close(e => {
             // Closing server error
             if (e) {
-                const error = utils.objects.toErrorStack(e, log => {
-                    utils.debug.here(`[Dynamoose Server]: Close error=${log}`)
+                const error = objects.toErrorStack(e, log => {
+                    debug.here(`${APP_PREFIX}[close]: Close error=${log}`)
                 })
 
                 return error
             }
 
-            utils.debug.here(`[Dynamoose Server]: Closed Server!`)
+            debug.here(`${APP_PREFIX}[close]: Closed Server!`)
         })
 }
 
-const repository = modelInstance => {
+const mapFactory = instance => (modelName, modelSchema, schemaOpts = {}, opts = {}) => {
+    const model = instance.model(modelName, modelSchema, schemaOpts, opts)
+    MODELS[modelName] = model
+
     return {
-        get: getModel,
-        map: mapModel(modelInstance),
-        close: closeRepository(modelInstance),
+        get: get,
+        map: mapFactory(instance),
+        close: closeFactory(instance),
     }
 }
 
@@ -67,18 +57,25 @@ const getConfig = (cfg = null) => {
 
 module.exports = cfg => {
     const config = getConfig(cfg)
-    const modelInstance = model(config)
-    const repo = repository(modelInstance)
+    const instance = dynamoose(config)
+    const repository = {
+        // Get model
+        get: get,
+        // Map model
+        map: mapFactory(instance),
+        // Close dynamo
+        close: closeFactory(instance),
+    }
 
     process.on('SIGINT', () => {
-        utils.debug.here('[Dynamoose SIGINT]: Interrupt signal: Closing Repository!')
-        repo.close()
+        debug.here(`${APP_PREFIX}[SIGINT]: Interrupt signal: Closing Repository!`)
+        repository.close()
     })
 
     process.on('SIGTERM', () => {
-        utils.debug.here('[Dynamoose SIGTERM]: Interrupt signal: Closing Repository!')
-        repo.close()
+        debug.here(`${APP_PREFIX}[SIGTERM]: Interrupt signal: Closing Repository!`)
+        repository.close()
     })
 
-    return repo
+    return repository
 }

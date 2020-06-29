@@ -6,7 +6,7 @@ const uuid = require('uuid/v4')
 const utils = require('fvi-node-utils')
 const repositoryUtils = require('fvi-dynamoose-utils')
 
-const app = require('./utils')
+const app = require('../app')
 
 const schemaTests = {
     // tenant-id
@@ -17,7 +17,6 @@ const schemaTests = {
 }
 
 const schemaOpts = {
-    timestamps: true,
     saveUnknown: true,
 }
 
@@ -70,8 +69,8 @@ describe('Testing 3 - Hash, Range, Index and By Index:', () => {
     })
 
     it('Testing Get OK:', done => {
-        model
-            .get({ id, client })
+        model.query
+            .getOne({ id, client })
             .then(res => {
                 chai.assert(!!res, 'Not Found Response!')
                 chai.assert(!!res.id, 'Not Found Response.id!')
@@ -195,8 +194,6 @@ describe('Testing 3 - Hash, Range, Index and By Index:', () => {
                 chai.assert(!!res.lastKey.client, 'Not Found lastKey.client!')
                 chai.assert(!!res.lastKey.type, 'Not Found lastKey.type!')
                 chai.assert(!!res.lastKey.id, 'Not Found lastKey.id!')
-                chai.assert(!!res.lastKey.type.S, 'Not Found lastKey.type.S!')
-                chai.assert(res.lastKey.type.S == type, 'Not Found lastKey.type.S!')
 
                 done()
             })
@@ -229,8 +226,6 @@ describe('Testing 3 - Hash, Range, Index and By Index:', () => {
                 chai.assert(!!res.name, 'Not Found Response.name!')
                 done()
             })
-            .catch(err => {
-                done('Exception:' + utils.objects.inspect(err))
-            })
+            .catch(done)
     })
 })

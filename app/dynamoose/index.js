@@ -1,93 +1,106 @@
 'use strict'
 
 const dynamoose = require('dynamoose')
-const dynalite = require('dynalite')
 
-const utils = require('fvi-node-utils')
+const { debug, string, sugar, objects } = require('fvi-node-utils')
 
-const getLocalServer = isDynalite => {
+const defaultCrud = require('./default-crud')
+const { APP_PREFIX, DYNAMO_PORT, DYNAMO_LOCAL } = require('../utils')
+
+const DEBUG_PREFIX = `${APP_PREFIX}[dynamo]`
+
+const schemaModel = objects.joi.object({
+    modelName: objects.joi.string().required(),
+})
+
+const modelFactory = config => (modelName, modelSchema, schemaOpts = {}, opts = {}) => {
+    debug.here(`${DEBUG_PREFIX}[model]: Setup ${modelName}`)
+
+    const checks = schemaModel.validate({ modelName })
+
+    if (checks.error) {
+        throw new Error(
+            `${DEBUG_PREFIX}[model]: Invalid input schema error=${objects.inspect(error)}`
+        )
+    }
+
+    const slugModelName = string.slugify(modelName)
+    const schema = new dynamoose.Schema(modelSchema, schemaOpts)
+    const options = objects.merge(config.options, opts)
+    const model = dynamoose.model(slugModelName, schema, options)
+
+    // TODO:
+    debug.here(
+        `${DEBUG_PREFIX}[model]: Setup By ${objects.inspect({
+            slugModelName,
+            modelSchema,
+            schemaOpts,
+        })}; opts: ${objects.inspect(options)}`
+    )
+
+    model.modelName = modelName
+
+    return defaultCrud(model)
+}
+
+const getServer = isDynalite => {
     if (!isDynalite) {
         return { close: () => {} }
     }
 
-    const server = dynalite()
-    const port = 8000
-    server.listen(port)
+    debug.here(`${DEBUG_PREFIX}[dynalite]: Creating on port=${DYNAMO_PORT}`)
 
-    utils.debug.here(`[Dynamoose Init]: Server Dynalite Created on port=${port}!`)
+    const dynalite = require('dynalite')
+    const server = dynalite()
+    server.listen(DYNAMO_PORT)
+
+    debug.here(
+        `${DEBUG_PREFIX}[dynalite]: Created on port=${DYNAMO_PORT}; server=${
+            server != null ? 'OK' : 'FAIL'
+        }`
+    )
+
     return server
 }
 
-const setup = config => (modelName, modelSchema, schemaOpts = {}, opts = {}) => {
-    if (!modelName) {
-        throw new Error(`Model name is null!`)
-    }
-
-    const schema = new dynamoose.Schema(modelSchema, schemaOpts)
-
-    const configOpts = config.options
-    configOpts.waitForActive = true
-
-    const options = utils.objects.merge(opts, configOpts)
-
-    utils.debug.here(`[Dynamoose Model]: Model Setup ${modelName}`)
-    utils.debug.here(
-        `[Dynamoose Model]: Model Setup ${utils.objects.inspect({
-            modelSchema,
-            schemaOpts,
-        })}; opts: ${utils.objects.inspect(options)}`
-    )
-
-    return dynamoose.model(modelName, schema, options)
-}
-
-const init = config => {
-    const defaultConfig = {
-        prefix: config.prefix,
-        suffix: config.suffix,
+const configure = config => {
+    const cfgDefault = {
+        prefix: config.prefix != null ? config.prefix : '',
+        suffix: config.suffix != null ? config.suffix : '',
         ...config.options,
     }
 
-    utils.debug.here(`[Dynamoose Init]: Default config=${utils.objects.inspect(defaultConfig)}`)
+    debug.here(`${DEBUG_PREFIX}[defaults]: Configure by ${objects.inspect(cfgDefault)}`)
+    dynamoose.model.defaults.set(cfgDefault)
 
-    dynamoose.setDefaults(defaultConfig)
-
-    const isLocal = !utils.env.IS_PROD
-
-    if (isLocal) {
-        dynamoose.AWS.config.update({
-            accessKeyId: 'accessKeyId',
-            secretAccessKey: 'secretAccessKey',
-            region: 'us-east-1',
-        })
-
-        dynamoose.local()
-        utils.debug.here(`[Dynamoose Init]: Setup DynamoDB Local!`)
-        console.log(`#WARN# [Dynamoose Init]: Setup Dynamo DB Local!`)
-
-        return {
-            setup: setup(config),
-            server: getLocalServer(config.dynalite),
-        }
-    }
-
-    const accessKeyId = config.accessKeyId
-    const secretAccessKey = config.secretAccessKey
-    const region = config.region
+    const accessKeyId = DYNAMO_LOCAL ? 'accessKey' : config.accessKeyId
+    const secretAccessKey = DYNAMO_LOCAL ? 'secretKey' : config.secretAccessKey
+    const region = DYNAMO_LOCAL ? 'us-east-1' : config.region
 
     const awsConfig = { accessKeyId, secretAccessKey, region }
 
-    dynamoose.AWS.config.update(awsConfig)
-    utils.debug.here(
-        `[Dynamoose Config]: Setup AWS DynamoDB config=${utils.objects.inspect(awsConfig)}`
-    )
+    dynamoose.aws.sdk.config.update(awsConfig)
+    debug.here(`${DEBUG_PREFIX}[aws]: Configure by ${objects.inspect(awsConfig)}`)
 
-    return {
-        setup: setup(config),
-        server: { close: () => {} },
+    if (DYNAMO_LOCAL) {
+        dynamoose.aws.ddb.local()
+        debug.here(`${DEBUG_PREFIX}[local]: Configure Local DynamoDB url=http://localhost:3000`)
+        console.log(`[WARN]${DEBUG_PREFIX}: Configure Local DynamoDB url=http://localhost:3000`)
     }
+
+    return { ...cfgDefault, awsConfig }
 }
 
-module.exports = {
-    init,
+module.exports = config => {
+    debug.here(`${DEBUG_PREFIX}: Connecting By ${objects.inspect(config)}`)
+
+    const isDynalite = DYNAMO_LOCAL && config.dynalite
+    const configured = configure(config)
+
+    debug.here(`${DEBUG_PREFIX}: Connected By ${objects.inspect({ ...configured, isDynalite })}`)
+
+    return {
+        model: modelFactory(config),
+        server: getServer(isDynalite),
+    }
 }
