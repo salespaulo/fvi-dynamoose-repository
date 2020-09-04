@@ -1,6 +1,6 @@
 {
     "name": "fvi-dynamoose-repository",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "FVI - Dynamoose like a Repository Library",
     "main": "src/index.js",
     "prettier": "fvi-prettier-config",
