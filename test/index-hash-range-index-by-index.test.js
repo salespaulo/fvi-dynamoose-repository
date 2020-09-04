@@ -6,7 +6,7 @@ const uuid = require('uuid/v4')
 const utils = require('fvi-node-utils')
 const repositoryUtils = require('fvi-dynamoose-utils')
 
-const app = require('../app')
+const app = require('../src')
 
 const schemaTests = {
     // tenant-id

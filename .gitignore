@@ -1,3 +1,4 @@
+dist/
 # App
 *.heapsnapshot
 .aws

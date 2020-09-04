@@ -5,7 +5,7 @@ const chai = require('chai')
 const utils = require('fvi-node-utils')
 const repositoryUtils = require('fvi-dynamoose-utils')
 
-const app = require('../app')
+const app = require('../src')
 
 const schemaTests = {
     // tenant-id
