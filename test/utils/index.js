@@ -1,7 +1,7 @@
 'use strict'
 
 const { config } = require('fvi-node-utils')
-const app = require('../../app')
+const app = require('../../src')
 
 const cfg = config({
             dynamoose: {
